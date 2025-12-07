@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String           @id @default(cuid())
+  email         String           @unique
+  name          String?
+  password      String?
+  emailVerified DateTime?
+  image         String?
+  role          String           @default("user") // "admin", "user"
+  teams         TeamMembership[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model Team {
+  id        String           @id @default(cuid())
+  name      String
+  slug      String           @unique
+  members   TeamMembership[]
+  apis      Api[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model TeamMembership {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  role      String   @default("member") // "owner", "admin", "member"
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@index([teamId])
+}
+
+model Api {
+  id          String    @id @default(cuid())
+  name        String
+  url         String
+  method      String    @default("GET")
+  description String?
+  category    String?
+  teamId      String?
+  isPublic    Boolean   @default(false)
+  
+  // Monitoring settings
+  intervalSeconds   Int     @default(300) // 5 minutes
+  timeoutMs         Int     @default(10000) // 10 seconds
+  retries           Int     @default(0)
+  followRedirects   Boolean @default(true)
+  expectedStatus    String? // e.g., "200,201,204"
+  contentMatch      String? // Regex to match in response body
+  sslCheckEnabled   Boolean @default(false)
+  
+  // HTTP settings
+  headers           String? // JSON string of headers
+  authType          String? // "none", "basic", "bearer"
+  authUsername      String?
+  authPassword      String? // Encrypted
+  authToken         String? // Encrypted
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  checks      Check[]
+  webhooks    Webhook[]
+  incidents   Incident[]
+  team        Team?       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+}
+
+model Check {
+  id           String   @id @default(cuid())
+  apiId        String
+  api          Api      @relation(fields: [apiId], references: [id], onDelete: Cascade)
+  status       String   // "online", "offline", "slow"
+  responseTime Int?     // in milliseconds
+  statusCode   Int?
+  error        String?
+  region       String?  // "us-east", "eu-west", "ap-south"
+  sslDaysLeft  Int?     // SSL certificate days remaining
+  checkedAt    DateTime @default(now())
+
+  @@index([apiId])
+  @@index([checkedAt])
+  @@index([status])
+}
+
+model Webhook {
+  id          String   @id @default(cuid())
+  apiId       String
+  type        String   // "webhook", "slack", "discord", "email"
+  url         String?
+  email       String?
+  isActive    Boolean  @default(true)
+  events      String   @default("status_change") // comma-separated: "status_change,incident_created,incident_resolved"
+  api         Api      @relation(fields: [apiId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([apiId])
+}
+
+model Incident {
+  id          String    @id @default(cuid())
+  apiId       String
+  status      String    @default("open") // "open", "acknowledged", "resolved"
+  severity    String    @default("high") // "low", "medium", "high", "critical"
+  title       String
+  description String?
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  resolvedBy  String?
+  notes       String?
+  api         Api       @relation(fields: [apiId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([apiId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model StatusPage {
+  id          String   @id @default(cuid())
+  teamId      String?
+  slug        String   @unique
+  title       String
+  description String?
+  isPublic    Boolean  @default(true)
+  apiIds      String   // JSON array of API IDs to display
+  customDomain String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+}
