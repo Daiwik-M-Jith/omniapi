@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+  functions = "netlify/functions"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Schedule the cron function to trigger every 5 minutes (Netlify Scheduled Functions)
+[[functions]]
+  name = "cron"
+  schedule = "*/5 * * * *"
+  path = "netlify/functions/cron"

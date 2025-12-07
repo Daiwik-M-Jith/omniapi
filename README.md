@@ -275,6 +275,49 @@ The `vercel.json` file configures automatic health checks every 5 minutes:
 
 ---
 
+### Deploy to Netlify
+
+If you'd like to deploy OmniAPI on Netlify, follow the steps below. Netlify supports Next.js via the official `@netlify/plugin-nextjs` and also supports scheduled functions.
+
+1. **Install Netlify plugin** (already added in devDependencies)
+  - The repo includes `netlify.toml` configured to use `@netlify/plugin-nextjs` and schedule a `cron` function every 5 minutes.
+
+2. **Environment Variables**
+  - Add the following to Netlify's environment settings:
+  ```bash
+  DATABASE_URL=postgresql://user:password@host:5432/omniapi
+  CRON_SECRET=your-secure-random-string
+  SMTP_HOST=smtp.gmail.com
+  SMTP_PORT=587
+  SMTP_USER=your-email@gmail.com
+  SMTP_PASS=your-app-password
+  SMTP_FROM=OmniAPI <noreply@yourcompany.com>
+  ```
+
+  > Note: SQLite is not suitable for serverless platforms like Netlify. Use PostgreSQL (Neon, PlanetScale, Railway, or Supabase) for production.
+
+3. **Scheduled Checks (Netlify)**
+  - Netlify `netlify.toml` includes a `cron` function being scheduled every 5 minutes.
+  - The build plugin will convert Next.js API routes into Netlify Functions; the scheduled function (`netlify/functions/cron`) calls the same `checkAllAPIs()` monitor logic.
+
+4. **Build & Deploy**
+  - Connect your repository to Netlify via the Netlify UI
+  - Set the build command to `npm run build` and publish directory to `.next`
+  - Add your environment variables and deploy
+
+5. **Testing Webhooks on Netlify**
+  - Create a webhook (use webhook.site or Slack/Discord)
+  - Trigger a manual check: `POST /api/apis/:id/check`
+  - Or wait for scheduled run every 5 minutes
+  - Check your webhook endpoint for incoming payloads
+
+6. **Netlify Notes**
+  - Scheduled functions are executed by Netlify at the edge; ensure your database is accessible from Netlify and not file-based (SQLite will not persist between function runs)
+  - Ensure all environment variables are set on Netlify, including `CRON_SECRET` and SMTP settings
+  - If you need nightly or high-frequency checks, use a managed database and provision sufficient function timeout
+
+---
+
 ## 🏗️ Architecture
 
 ### Tech Stack
